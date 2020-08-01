@@ -15,7 +15,7 @@ import type { BatchItem } from "@rpldy/shared";
 import type { OnProgress, SendResult } from "@rpldy/sender";
 import type { TriggerMethod } from "@rpldy/life-events";
 import type { ChunkStartEventData } from "../types";
-import type { Chunk, State } from "./types";
+import type { Chunk, ChunkedState } from "./types";
 import ChunkedSendError from "./ChunkedSendError";
 
 const getContentRangeValue = (chunk, data, item) =>
@@ -36,20 +36,22 @@ const getSkippedResult = (): SendResult => ({
 
 const uploadChunkWithUpdatedData = async (
 	chunk: Chunk,
-	state: State,
+    chunkedState: ChunkedState,
 	item: BatchItem,
 	onProgress: OnProgress,
 	trigger: TriggerMethod,
 ): Promise<SendResult> => {
-	const sendOptions = {
-		...unwrap(state.sendOptions),
-		headers: {
-			...state.sendOptions.headers,
-			"Content-Range": getContentRangeValue(chunk, chunk.data, item),
-		}
-	};
+    const state = chunkedState.getState();
 
-	const chunkItem = createBatchItem(chunk.data, chunk.id);
+    const sendOptions = {
+        ...unwrap(state.sendOptions),
+        headers: {
+            ...state.sendOptions.headers,
+            "Content-Range": getContentRangeValue(chunk, chunk.data, item),
+        }
+    };
+
+    const chunkItem = createBatchItem(chunk.data, chunk.id);
 
 	const onChunkProgress = (e) => {
 		onProgress(e, [chunk]);
@@ -86,7 +88,7 @@ const uploadChunkWithUpdatedData = async (
 
 export default (
 	chunk: Chunk,
-	state: State,
+	chunkedState: ChunkedState,
 	item: BatchItem,
 	onProgress: OnProgress,
 	trigger: TriggerMethod,
@@ -100,9 +102,9 @@ export default (
 		throw new ChunkedSendError("chunk failure - failed to slice");
 	}
 
-	logger.debugLog(`chunkedSender.sendChunk: about to send chunk ${chunk.id} [${chunk.start}-${chunk.end}] to: ${state.url}`);
+	logger.debugLog(`chunkedSender.sendChunk: about to send chunk ${chunk.id} [${chunk.start}-${chunk.end}] to: ${chunkedState.getState().url}`);
 
-	const chunkXhrRequest = uploadChunkWithUpdatedData(chunk, state, item, onProgress, trigger);
+	const chunkXhrRequest = uploadChunkWithUpdatedData(chunk, chunkedState, item, onProgress, trigger);
 
 	const abort = () => {
 		chunkXhrRequest.then(({ abort }) => abort());

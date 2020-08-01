@@ -8,7 +8,7 @@ import sendChunk from "./sendChunk";
 import type { BatchItem } from "@rpldy/shared";
 import type { OnProgress } from "@rpldy/sender";
 import type { TriggerMethod } from "@rpldy/life-events";
-import type { Chunk, State } from "./types";
+import type { Chunk, ChunkedState } from "./types";
 
 const resolveOnError = (resolve, ex) => {
     if (ex instanceof ChunkedSendError) {
@@ -24,13 +24,16 @@ const resolveOnError = (resolve, ex) => {
     }
 };
 
-const resolveOnAllChunksFinished = (state: State, item: BatchItem, resolve): boolean => {
-    const finished = !state.chunks.length;
+const resolveOnAllChunksFinished = (chunkedState: ChunkedState, item: BatchItem, resolve): boolean => {
+	const state = chunkedState.getState(),
+		finished = !state.chunks.length;
 
-    if (finished && !state.error) {
-        state.finished = true;
+	if (finished && !state.error) {
+		chunkedState.updateState((state) => {
+			state.finished = true;
+		});
 
-        logger.debugLog(`chunkedSender: chunked upload finished for item: ${item.id}`, state.responses);
+		logger.debugLog(`chunkedSender: chunked upload finished for item: ${item.id}`, state.responses);
 
         resolve({
             state: FILE_STATES.FINISHED,
@@ -41,25 +44,34 @@ const resolveOnAllChunksFinished = (state: State, item: BatchItem, resolve): boo
     return finished || state.error;
 };
 
-export const handleChunk = async (state: State, item: BatchItem, onProgress: OnProgress, resolve: (any) => void, chunk: Chunk, trigger: TriggerMethod) => {
-    const chunkSendResult = sendChunk(chunk, state, item, onProgress, trigger);
-    await handleChunkRequest(state, item, chunk.id, chunkSendResult, trigger);
+export const handleChunk = async (
+	chunkedState: ChunkedState,
+	item: BatchItem,
+	onProgress: OnProgress,
+	resolve: (any) => void,
+	chunk: Chunk,
+	trigger: TriggerMethod
+) => {
+	const chunkSendResult = sendChunk(chunk, chunkedState, item, onProgress, trigger);
+	await handleChunkRequest(chunkedState, item, chunk.id, chunkSendResult, trigger);
 
-    if (!resolveOnAllChunksFinished(state, item, resolve)) {
-        //not finished - continue sending remaining chunks
-        sendChunks(state, item, onProgress, resolve, trigger);
-    }
+	if (!resolveOnAllChunksFinished(chunkedState, item, resolve)) {
+		//not finished - continue sending remaining chunks
+		sendChunks(chunkedState, item, onProgress, resolve, trigger);
+	}
 };
 
 const sendChunks = async (
-    state: State,
+    chunkedState: ChunkedState,
     item: BatchItem,
     onProgress: OnProgress,
     resolve: (any) => void,
     trigger: TriggerMethod,
 ) => {
-    if (!state.finished && !state.aborted) {
-        const inProgress = Object.keys(state.requests).length;
+	const state = chunkedState.getState();
+
+	if (!state.finished && !state.aborted) {
+		const inProgress = Object.keys(state.requests).length;
 
         if (!inProgress ||
             (state.parallel && state.parallel > inProgress)) {
@@ -74,10 +86,13 @@ const sendChunks = async (
 
             if (chunks) {
                 chunks.forEach((chunk) => {
-                    handleChunk(state, item, onProgress, resolve, chunk, trigger)
+                    handleChunk(chunkedState, item, onProgress, resolve, chunk, trigger)
                         .catch((ex) => {
-                            state.error = true;
-                            resolveOnError(resolve, ex);
+							chunkedState.updateState((state) => {
+								state.error = true;
+							});
+
+							resolveOnError(resolve, ex);
                         });
                 });
             }

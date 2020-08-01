@@ -27,6 +27,11 @@ export type State = {|
     sendOptions: SendOptions,
 |};
 
+export type ChunkedState = {
+	getState: () => State,
+	updateState: ((state: State) => void) => void,
+};
+
 export type ChunksSendResponse = {
     sendPromise: Promise<UploadData>,
     abort: () => boolean
