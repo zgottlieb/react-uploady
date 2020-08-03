@@ -15,7 +15,7 @@ import type { BatchItem } from "@rpldy/shared";
 import type { OnProgress, SendResult } from "@rpldy/sender";
 import type { TriggerMethod } from "@rpldy/life-events";
 import type { ChunkStartEventData } from "../types";
-import type { Chunk, ChunkedState } from "./types";
+import type { Chunk, ChunkedState, State } from "./types";
 import ChunkedSendError from "./ChunkedSendError";
 
 const getContentRangeValue = (chunk, data, item) =>
@@ -46,7 +46,7 @@ const uploadChunkWithUpdatedData = async (
     const sendOptions = {
         ...unwrap(state.sendOptions),
         headers: {
-            ...state.sendOptions.headers,
+            ...unwrap(state.sendOptions.headers),
             "Content-Range": getContentRangeValue(chunk, chunk.data, item),
         }
     };
@@ -94,9 +94,13 @@ export default (
 	trigger: TriggerMethod,
 ): SendResult => {
 	if (!chunk.data) {
-		//slice the chunk based on bit position
-		chunk.data = getChunkDataFromFile(item.file, chunk.start, chunk.end);
+        chunkedState.updateChunk(chunk, (fresh) => {
+            fresh.data = getChunkDataFromFile(item.file, chunk.start, chunk.end);
+        });
 	}
+
+	//get a fresh copy of the chunk
+	chunk = chunkedState.getFreshChunk(chunk); //chunkedState.getState().chunks[chunk.index];
 
 	if (!chunk.data) {
 		throw new ChunkedSendError("chunk failure - failed to slice");

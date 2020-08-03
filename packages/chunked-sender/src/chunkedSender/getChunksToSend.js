@@ -1,9 +1,10 @@
 // @flow
 import ChunkedSendError from "./ChunkedSendError";
-import type { State } from "./types";
+import type { ChunkedState } from "./types";
 
-export default (state: State) => {
+export default (chunkedState: ChunkedState) => {
 	const chunks = [],
+        state = chunkedState.getState(),
 		inProgressIds = Object.keys(state.requests),
 		parallel = state.parallel || 1;
 

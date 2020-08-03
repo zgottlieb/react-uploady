@@ -79,12 +79,14 @@ const sendChunks = async (
             let chunks;
 
             try {
-                chunks = getChunksToSend(state);
+                chunks = getChunksToSend(chunkedState);
             } catch (ex) {
                 resolveOnError(resolve, ex);
             }
 
             if (chunks) {
+                logger.debugLog(`chunkedSender: sendChunks handling next: ${chunks.length} to be uploaded`);
+
                 chunks.forEach((chunk) => {
                     handleChunk(chunkedState, item, onProgress, resolve, chunk, trigger)
                         .catch((ex) => {

@@ -28,7 +28,7 @@ export const abortChunkedRequest = (chunkedState: ChunkedState, item: BatchItem)
 		});
     }
 
-    return state.aborted;
+    return chunkedState.getState().aborted;
 };
 
 export const process = (
@@ -92,7 +92,24 @@ export default (
 
     const getState = () => state;
 
-    const { sendPromise, abort } = process({ getState, updateState }, item, onProgress, trigger);
+    const getFreshChunk = (chunk: Chunk, state: State = getState()) =>
+        state.chunks.find((c) => c.id === chunk.id);
+
+    const updateChunk = (chunk: Chunk, updater) => {
+        updateState((state) => {
+            const fresh = getFreshChunk(chunk, state);
+            updater(fresh);
+        });
+    };
+
+    const chunkedState = {
+        getState,
+        updateState,
+        getFreshChunk,
+        updateChunk,
+    };
+
+    const { sendPromise, abort } = process(chunkedState, item, onProgress, trigger);
 
     return {
         request: sendPromise,

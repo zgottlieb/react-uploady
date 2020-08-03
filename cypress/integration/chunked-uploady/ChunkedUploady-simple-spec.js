@@ -4,7 +4,7 @@ describe("ChunkedUploady - Simple", () => {
     const fileName = "flower.jpg";
 
     before(() => {
-        cy.visitStory("chunkedUploady", "simple&knob-destination_Upload Destination=url&knob-upload url_Upload Destination=http://test.upload/url&knob-chunk size (bytes)_Upload Settings=50000");
+        cy.visitStory("chunkedUploady", "simple&knob-destination_Upload Destination=url&knob-upload url_Upload Destination=http://test.upload/url&knob-chunk size (bytes)_Upload Settings=50000", true);
     });
 
     it("should use chunked uploady with unique id", () => {
@@ -19,10 +19,9 @@ describe("ChunkedUploady - Simple", () => {
             response: { success: true }
         }).as("uploadReq");
 
-        cy.iframe("#storybook-preview-iframe").as("iframe");
+        // cy.iframe("#storybook-preview-iframe").as("iframe");
 
-        cy.get("@iframe")
-            .find("input")
+        cy.get("input")
             .should("exist")
             .as("fInput");
 
@@ -51,6 +50,6 @@ describe("ChunkedUploady - Simple", () => {
                     expect(xhr.request.headers["Content-Range"])
                         .to.match(/bytes 50000-\d+\//);
                 });
-        });
+        }, "button", null);
     });
 });

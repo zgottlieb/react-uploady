@@ -29,7 +29,9 @@ export type State = {|
 
 export type ChunkedState = {
 	getState: () => State,
-	updateState: ((state: State) => void) => void,
+	updateState: ((State) => void) => void,
+    getFreshChunk: (Chunk, ?State) => ?Chunk,
+    updateChunk: (Chunk, (Chunk) => void) => void,
 };
 
 export type ChunksSendResponse = {
